@@ -47,6 +47,7 @@ bool color[601];
 
 void search_route(char *topo[5000], int edge_num, char *demand)
 {
+    srand(time(NULL));
     start_time = clock();
     read_graph(topo, edge_num);
     read_demand(demand);
@@ -55,9 +56,9 @@ void search_route(char *topo[5000], int edge_num, char *demand)
     path.push_back(src);  //source
     excluded.insert(src);
 
-    if (bCnt <= 6 && N <= 20)
-        getShortestPathBruteForce(src);
-    else
+    //if (bCnt <= 6 && N <= 20)
+    //    getShortestPathBruteForce(src);
+    //else
         getShortestPathSPFA(src);
     output_result();
 }
@@ -133,7 +134,7 @@ void read_demand(char *demand)
 
 void getShortestPathSPFA(int start) {
     clock_t cur_time = clock();
-    if (cur_time - start_time > 9900) {
+    if ((cur_time - start_time) * 1.0 / CLOCKS_PER_SEC * 1000 > 9900) {
         is_time_out = true;
         return ;
     }
