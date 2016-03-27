@@ -15,6 +15,9 @@ using std::cout;
 using std::endl;
 using std::max;
 using std::swap;
+using std::sort;
+
+#define RANDOM_ON 1
 
 const int MAXN = 610;
 
@@ -117,7 +120,7 @@ void read_graph(char *topo[5000], int edge_num)
                 edges[i][edgesCnt[i]][0] = tmpEdges[i][j];
                 edges[i][edgesCnt[i]][1] = j;
                 edgesCnt[i]++;
-                
+
                 edgesR[j][edgesRCnt[j]][0] = tmpEdges[i][j];
 				edgesR[j][edgesRCnt[j]][1] = i;
 				edgesRCnt[j]++;
@@ -181,6 +184,11 @@ void SPToDest() {
 			}
 		}
 	}
+}
+
+bool cmp_dis_to_dest(int u, int v) {
+    if (distancesToDest[u] < distancesToDest[v]) return true;
+    return false;
 }
 
 
@@ -257,24 +265,30 @@ void getShortestPathSPFA(int start) {
 
     for (int i = 0; i < bCnt; i++) {
         int b = bridges[i];
-        if (visitedB[b] || distancesToDest[b] == 0 || 
-                (path[0] + distances[b] + distancesToDest[b] >= minDistance)) // FIX ME !!!!!!!
+        if (visitedB[b] || distancesToDest[b] == 0 ||
+                (path[0] + distances[b] + distancesToDest[b] >= minDistance))
             continue;
         tmpBridges[tmpBCnt++] = b;
     }
+
+#if RANDOM_ON
     for (int i = 0; i < tmpBCnt; ++i) {
         int j = rand() % tmpBCnt;
         swap(tmpBridges[i], tmpBridges[j]);
     }
-
+#else
+    sort(tmpBridges, tmpBridges + tmpBCnt, cmp_dis_to_dest);
+#endif
     vector<int> res;
     for (int bi = 0; bi < tmpBCnt; ++bi) {
         int b = tmpBridges[bi];
+#if RANDOM_ON
         if (4 < visitedBCnt && visitedBCnt + 5 < bCnt) {
             int p = rand() % visitedBCnt;
             if (p < visitedBCnt - 3)
                 continue;
         }
+#endif
         res.clear();
         int p = b;
         bool containsB = false;
