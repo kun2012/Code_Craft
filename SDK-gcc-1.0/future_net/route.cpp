@@ -59,6 +59,9 @@ void getShortestPathBruteForce(int start);
 void output_result();
 void SPToDest();
 
+bool first_try = true;
+bool second_try = true;
+
 void search_route(char *topo[5000], int edge_num, char *demand)
 {
     srand(time(NULL));
@@ -75,6 +78,7 @@ void search_route(char *topo[5000], int edge_num, char *demand)
     memset(excluded, 0, sizeof(excluded));
     excluded[src] = true;
 
+    path.clear();
     path.push_back(0);  //distance
     path.push_back(src);  //source
 
@@ -89,9 +93,20 @@ void search_route(char *topo[5000], int edge_num, char *demand)
         memset(distancesToDest, 0, sizeof(distancesToDest));
         SPToDest();
         getShortestPathSPFA(src);
-        return ;
+    } else if (jstatus == -1) {
+        memset(visitedB, 0, sizeof(visitedB));
+        visitedBCnt = 0;
+        memset(excluded, 0, sizeof(excluded));
+        excluded[src] = true;
+
+        path.clear();
+        path.push_back(0);  //distance
+        path.push_back(src);  //source
+
+        getShortestPathSPFA(src);
+    } else if (jstatus == -2) {
+        output_result();
     }
-    output_result();
 }
 
 void output_result() {
@@ -191,11 +206,16 @@ bool cmp_dis_to_dest(int u, int v) {
     return false;
 }
 
-
 void getShortestPathSPFA(int start) {
     clock_t cur_time = clock();
-    if ((cur_time - start_time) * 1.0 / CLOCKS_PER_SEC * 1000 > 9990) {
-        longjmp(jmpManiBuf, -3);
+    if (first_try && (cur_time - start_time) * 1.0 / CLOCKS_PER_SEC * 1000 > 3000) {
+        first_try = false;
+        longjmp(jmpManiBuf, -1);
+    } else if (second_try && (cur_time - start_time) * 1.0 / CLOCKS_PER_SEC * 1000 > 6000) {
+        second_try = false;
+        longjmp(jmpManiBuf, -1);
+    } else if ((cur_time - start_time) * 1.0 / CLOCKS_PER_SEC * 1000 > 9990) {
+        longjmp(jmpManiBuf, -2);
     }
     //distances[i] == 0 means: 1. start vertex, 2. unreabable
     int *distances = new int[N];
