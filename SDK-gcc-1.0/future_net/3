@@ -4,14 +4,17 @@
 #include <limits.h>
 #include <string.h>
 #include <time.h>
+#include <set>
 #include <algorithm>
 #include <iostream>
 #include <vector>
 #include <queue>
 using std::queue;
+using std::set;
 using std::vector;
 using std::cout;
 using std::endl;
+using std::set;
 using std::max;
 using std::swap;
 
@@ -28,19 +31,15 @@ bool is_time_out = false;
 int tmpEdges[MAXN][MAXN];
 int shortestPath[MAXN];
 bool color[MAXN];
-bool excluded[MAXN]; //indicate a node should not visited
-bool visitedB[MAXN]; //indicate a bridge node has been visited
-int visitedBCnt; // # of bridge nodes have been visited
-//For bridge nodes
-int bridges[MAXN];
-bool isBridges[MAXN];
-int bCnt;
+bool excluded[MAXN];
 
+set<int> bridges;
+set<int> visitedB;
 vector<int> path;
+int bCnt;
 int pathLen;
-queue<int> que; //used in spfa
-
-clock_t start_time; //start time of search_route function
+queue<int> que;
+clock_t start_time;
 
 //functions
 void read_graph(char *topo[5000], int edge_num);
@@ -54,23 +53,16 @@ void search_route(char *topo[5000], int edge_num, char *demand)
     srand(time(NULL));
     start_time = clock();
     read_graph(topo, edge_num);
-
-    memset(isBridges, 0, sizeof(isBridges));
-    bCnt = 0;
     read_demand(demand);
 
-    memset(visitedB, 0, sizeof(visitedB));
-    visitedBCnt = 0;
-
     memset(excluded, 0, sizeof(excluded));
-    excluded[src] = true;
-
     path.push_back(0);  //distance
     path.push_back(src);  //source
+    excluded.insert(src);
 
-    if (bCnt <= 6 && N <= 20)
-        getShortestPathBruteForce(src);
-    else
+    //if (bCnt <= 6 && N <= 20)
+    //    getShortestPathBruteForce(src);
+    //else
         getShortestPathSPFA(src);
     output_result();
 }
@@ -126,10 +118,10 @@ void read_demand(char *demand)
             tmp = tmp * 10 + demand[i] - '0';
             i++;
         }
-        bridges[bCnt++] = tmp;
-        isBridges[tmp] = true;
+        bridges.insert(tmp);
         i++;
     }
+    bCnt = bridges.size();
 /*
     printf("src = %d\n", src);
     printf("dest = %d\n", dest);
@@ -184,16 +176,17 @@ void getShortestPathSPFA(int start) {
             }
         }
     }
-    for (int i = 0; i < bCnt; i++) {
-        int b = bridges[i];
-        if (!visitedB[b] && distances[b] == 0) return;
+    set<int>::iterator it;
+    for (it = bridges.begin(); it != bridges.end(); ++it) {
+        int b = *it;
+        if (visitedB.find(b) == visitedB.end() && distances[b] == 0) return;
     }
     if (distances[dest] == 0) return;
     if (distances[dest] + path[0] >= minDistance) return;
 
     //we can be sure that distances[dest] + path.get(0) < minDistance
     //and we update the minDistance and shortestPath
-    if (bCnt == visitedBCnt) {
+    if (bridges.size() == visitedB.size()) {
         vector<int> res;
         int p = dest;
         while (parents[p] != p) {
@@ -210,12 +203,13 @@ void getShortestPathSPFA(int start) {
     }
 
     //here, we can use randomness
-    int *tmpBridges = new int[bCnt - visitedBCnt];
+    int visitedBCnt = visitedB.size();
+    int *tmpBridges = new int[bridges.size() - visitedBCnt];
     int tmpBCnt = 0;
 
-    for (int i = 0; i < bCnt; i++) {
-        int b = bridges[i];
-        if (visitedB[b] || (path[0] + distances[b] >= minDistance)) // FIX ME !!!!!!!
+    for (it = bridges.begin(); it != bridges.end(); ++it) {
+        int b = *it;
+        if (visitedB.find(b) != visitedB.end() || (path[0] + distances[b] >= minDistance)) // FIX ME !!!!!!!
             continue;
         tmpBridges[tmpBCnt++] = b;
     }
@@ -236,7 +230,7 @@ void getShortestPathSPFA(int start) {
         int p = b;
         bool containsB = false;
         while (parents[p] != p) {
-            if (p != b && isBridges[p]) {
+            if (p != b && bridges.find(p) != bridges.end()) {
                 containsB = true;
                 break;
             }
@@ -249,20 +243,18 @@ void getShortestPathSPFA(int start) {
         path[0] += distances[b];
         for (int i = res.size() - 1; i >= 0; --i) {
             path.push_back(res[i]);
-            excluded[res[i]] = true;
+            excluded.insert(res[i]);
         }
-        visitedB[b] = true;
-        visitedBCnt++;
+        visitedB.insert(b);
         getShortestPathSPFA(b);
         if (is_time_out) {
             //using return for speed but causing memory leak
             return ;
         }
-        visitedB[b] = false;
-        visitedBCnt--;
+        visitedB.erase(b);
         for (int i = res.size() - 1; i >= 0; --i) {
             path.pop_back();
-            excluded[res[i]] = false;
+            excluded.erase(res[i]);
         }
         path[0] -= distances[b];
     }
@@ -281,40 +273,38 @@ void getAllPaths(int start, int end, vector<int> &path, vector<vector<int> > &al
             r[0] += w;
             r.push_back(v);
             allPaths.push_back(r);
-        } else if (!excluded[v] && !isBridges[v]) {
-            excluded[v] = true;
+        } else if (excluded.find(v) == excluded.end() && bridges.find(v) == bridges.end()) {
+            excluded.insert(v);
             path.push_back(v);
             path[0] += w;
             getAllPaths(v, end, path, allPaths);
             path[0] -= w;
             path.pop_back();
-            excluded[v] = false;
+            excluded.erase(v);
         }
     }
 }
 
-void getNextBridges(int start, vector<int> &nextB) {
+void getNextBridges(int start, set<int> &nextB) {
     memset(color, 0, sizeof(color));
-    /*
     if (!que.empty()) {
         cout << "que not empty error" << endl;
         abort();
     }
-    */
     que.push(start);
     color[start] = true;
     while (!que.empty()) {
         int u = que.front();
         que.pop();
-        if (u != start && isBridges[u]) continue;
+        if (u != start && bridges.find(u) != bridges.end()) continue;
         for (int c = 0; c < edgesCnt[u]; ++c) {
             int v = edges[u][c][1];
-            if (excluded[v]) continue;
+            if (excluded.find(v) != excluded.end()) continue;
             if (color[v] == false) {
                 que.push(v);
                 color[v] = true;
-                if (isBridges[v] && !visitedB[v])
-                    nextB.push_back(v);
+                if (bridges.find(v) != bridges.end() && visitedB.find(v) == visitedB.end())
+                    nextB.insert(v);
             }
         }
     }
@@ -323,7 +313,7 @@ void getNextBridges(int start, vector<int> &nextB) {
 void getShortestPathBruteForce(int start) {
     vector<vector<int> > allPaths;
     //next is destination
-    if (visitedBCnt == bCnt) {
+    if (visitedB.size() == (unsigned int)bCnt) {
     //    cout << "in destination start = "  << start << endl;
         vector<int> curPath;
         curPath.push_back(0);
@@ -352,11 +342,17 @@ void getShortestPathBruteForce(int start) {
     }
 
     //next vertex is bridge
-    vector<int> nextB;
+    set<int> nextB;
     getNextBridges(start, nextB);
 
-    for (size_t i = 0; i < nextB.size(); i++) {
-        int b = nextB[i];
+    set<int>::iterator it;
+//    for (it = nextB.begin(); it != nextB.end(); ++it) {
+ //       cout << "*" << *it << endl;
+  //  }
+   // cout << "-----" << endl;
+
+    for (it = nextB.begin(); it != nextB.end(); ++it) {
+        int b = *it;
         vector<int> curPath;
         curPath.push_back(0);
         curPath.push_back(start);
@@ -365,20 +361,18 @@ void getShortestPathBruteForce(int start) {
         if (allPaths.size() == 0) return;
         for (size_t j = 0; j < allPaths.size(); j++) {
             for (size_t i = 1; i < allPaths[j].size(); ++i) {
-                excluded[allPaths[j][i]] = true;
+                excluded.insert(allPaths[j][i]);
                 if (i >= 2)
                     path.push_back(allPaths[j][i]);
             }
             path[0] += allPaths[j][0];
    //         cout << "path[0] = " << path[0] << endl;
-            visitedB[b] = true;
-            visitedBCnt++;
+            visitedB.insert(b);
             getShortestPathBruteForce(b);
-            visitedB[b] = false;
-            visitedBCnt--;
+            visitedB.erase(b);
             path[0] -= allPaths[j][0];
             for (size_t i = 1; i < allPaths[j].size(); ++i) {
-                excluded[allPaths[j][i]] = false;
+                excluded.erase(allPaths[j][i]);
                 if (i >= 2)
                     path.pop_back();
             }
