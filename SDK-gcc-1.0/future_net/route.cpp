@@ -23,6 +23,11 @@ jmp_buf jmpManiBuf;
 int edges[MAXN][MAXN][2];  //0 ==> weight, 1 ==> index
 int edgesCnt[MAXN];
 int labels[MAXN][MAXN];
+
+int edgesR[MAXN][MAXN][2];
+int edgesRCnt[MAXN];
+int distancesToDest[MAXN];
+
 int N = 0;
 int src = -1, dest = -1;
 int minDistance = INT_MAX;
@@ -49,6 +54,7 @@ void read_demand(char *demand);
 void getShortestPathSPFA(int start);
 void getShortestPathBruteForce(int start);
 void output_result();
+void SPToDest();
 
 void search_route(char *topo[5000], int edge_num, char *demand)
 {
@@ -77,6 +83,8 @@ void search_route(char *topo[5000], int edge_num, char *demand)
 
     int jstatus = setjmp(jmpManiBuf);
     if (jstatus == 0) {
+        memset(distancesToDest, 0, sizeof(distancesToDest));
+        SPToDest();
         getShortestPathSPFA(src);
         return ;
     }
@@ -109,6 +117,10 @@ void read_graph(char *topo[5000], int edge_num)
                 edges[i][edgesCnt[i]][0] = tmpEdges[i][j];
                 edges[i][edgesCnt[i]][1] = j;
                 edgesCnt[i]++;
+                
+                edgesR[j][edgesRCnt[j]][0] = tmpEdges[i][j];
+				edgesR[j][edgesRCnt[j]][1] = i;
+				edgesRCnt[j]++;
             }
 }
 
@@ -148,6 +160,29 @@ void read_demand(char *demand)
     printf("\n");
     */
 }
+
+void SPToDest() {
+    memset(color, 0, sizeof(color));
+	que.push(dest);
+	color[dest] = true;
+	while (!que.empty()) {
+		int u = que.front();
+		que.pop();
+		color[u] = false;
+		for (int c = 0; c < edgesRCnt[u]; ++c) {
+			int w = edgesR[u][c][0];
+			int v = edgesR[u][c][1];
+			if (distancesToDest[v] == 0 || distancesToDest[v] > distancesToDest[u] + w) {
+				distancesToDest[v] = distancesToDest[u] + w;
+				if (color[v] == false) {
+					que.push(v);
+					color[v] = true;
+				}
+			}
+		}
+	}
+}
+
 
 void getShortestPathSPFA(int start) {
     clock_t cur_time = clock();
@@ -222,7 +257,8 @@ void getShortestPathSPFA(int start) {
 
     for (int i = 0; i < bCnt; i++) {
         int b = bridges[i];
-        if (visitedB[b] || (path[0] + distances[b] >= minDistance)) // FIX ME !!!!!!!
+        if (visitedB[b] || distancesToDest[b] == 0 || 
+                (path[0] + distances[b] + distancesToDest[b] >= minDistance)) // FIX ME !!!!!!!
             continue;
         tmpBridges[tmpBCnt++] = b;
     }
