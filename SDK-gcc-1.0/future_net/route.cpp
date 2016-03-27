@@ -4,6 +4,7 @@
 #include <limits.h>
 #include <string.h>
 #include <time.h>
+#include <setjmp.h>
 #include <algorithm>
 #include <iostream>
 #include <vector>
@@ -17,6 +18,7 @@ using std::swap;
 
 const int MAXN = 610;
 
+jmp_buf jmpManiBuf;
 //Global variables
 int edges[MAXN][MAXN][2];  //0 ==> weight, 1 ==> index
 int edgesCnt[MAXN];
@@ -24,7 +26,6 @@ int labels[MAXN][MAXN];
 int N = 0;
 int src = -1, dest = -1;
 int minDistance = INT_MAX;
-bool is_time_out = false;
 int tmpEdges[MAXN][MAXN];
 int shortestPath[MAXN];
 bool color[MAXN];
@@ -68,10 +69,17 @@ void search_route(char *topo[5000], int edge_num, char *demand)
     path.push_back(0);  //distance
     path.push_back(src);  //source
 
-    if (bCnt <= 6 && N <= 20)
+    if (bCnt <= 6 && N <= 20) {
         getShortestPathBruteForce(src);
-    else
+        output_result();
+        return ;
+    }
+
+    int jstatus = setjmp(jmpManiBuf);
+    if (jstatus == 0) {
         getShortestPathSPFA(src);
+        return ;
+    }
     output_result();
 }
 
@@ -144,8 +152,7 @@ void read_demand(char *demand)
 void getShortestPathSPFA(int start) {
     clock_t cur_time = clock();
     if ((cur_time - start_time) * 1.0 / CLOCKS_PER_SEC * 1000 > 9990) {
-        is_time_out = true;
-        return ;
+        longjmp(jmpManiBuf, -3);
     }
     //distances[i] == 0 means: 1. start vertex, 2. unreabable
     int *distances = new int[N];
@@ -254,10 +261,6 @@ void getShortestPathSPFA(int start) {
         visitedB[b] = true;
         visitedBCnt++;
         getShortestPathSPFA(b);
-        if (is_time_out) {
-            //using return for speed but causing memory leak
-            return ;
-        }
         visitedB[b] = false;
         visitedBCnt--;
         for (int i = res.size() - 1; i >= 0; --i) {
