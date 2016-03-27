@@ -46,7 +46,7 @@ bool isBridges[MAXN];
 int bCnt;
 
 vector<int> path;
-int pathLen;
+int pathLen = 0;
 queue<int> que; //used in spfa
 
 clock_t start_time; //start time of search_route function
@@ -82,7 +82,7 @@ void search_route(char *topo[5000], int edge_num, char *demand)
     path.push_back(0);  //distance
     path.push_back(src);  //source
 
-    if (bCnt <= 6 && N <= 20) {
+    if (bCnt <= 5 && N <= 10) {
         getShortestPathBruteForce(src);
         output_result();
         return ;
@@ -98,19 +98,26 @@ void search_route(char *topo[5000], int edge_num, char *demand)
         visitedBCnt = 0;
         memset(excluded, 0, sizeof(excluded));
         excluded[src] = true;
-
         path.clear();
         path.push_back(0);  //distance
         path.push_back(src);  //source
-
         getShortestPathSPFA(src);
-    } else if (jstatus == -2) {
-        output_result();
     }
+    if (pathLen == 0) {
+        memset(visitedB, 0, sizeof(visitedB));
+        visitedBCnt = 0;
+        memset(excluded, 0, sizeof(excluded));
+        excluded[src] = true;
+        path.clear();
+        path.push_back(0);  //distance
+        path.push_back(src);  //source
+        getShortestPathBruteForce(src);
+    }
+    output_result();
 }
 
 void output_result() {
-    cout << minDistance << endl;
+//    cout << minDistance << endl;
     for (int i = 0; i < pathLen - 1; i++)
         record_result(labels[shortestPath[i]][shortestPath[i + 1]]);
 }
@@ -214,7 +221,7 @@ void getShortestPathSPFA(int start) {
     } else if (second_try && (cur_time - start_time) * 1.0 / CLOCKS_PER_SEC * 1000 > 6000) {
         second_try = false;
         longjmp(jmpManiBuf, -1);
-    } else if ((cur_time - start_time) * 1.0 / CLOCKS_PER_SEC * 1000 > 9990) {
+    } else if ((cur_time - start_time) * 1.0 / CLOCKS_PER_SEC * 1000 > 9900) {
         longjmp(jmpManiBuf, -2);
     }
     //distances[i] == 0 means: 1. start vertex, 2. unreabable
