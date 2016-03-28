@@ -18,7 +18,9 @@ using std::swap;
 using std::sort;
 
 #define RANDOM_ON 1
-#define REVERSE_ON 1
+#define REVERSE_ON 0
+#define MIDDLE_SPLIT_ON 0
+#define OUTPUT_ON 0
 
 const int MAXN = 610;
 
@@ -45,6 +47,12 @@ int visitedBCnt; // # of bridge nodes have been visited
 int bridges[MAXN];
 bool isBridges[MAXN];
 int bCnt;
+#if MIDDLE_SPLIT_ON
+bool isOneIndgreeBridges[MAXN];
+int oneInNum;
+int oneInBridgesCnt = 0, visitedOneInBridgesCnt = 0;
+int oneInBridgesSeq[100];
+#endif
 
 vector<int> path;
 int pathLen = 0;
@@ -56,6 +64,10 @@ clock_t start_time; //start time of search_route function
 void read_graph(char *topo[5000], int edge_num);
 void read_demand(char *demand);
 void getShortestPathSPFA(int start);
+#if MIDDLE_SPLIT_ON
+void getShortestPathSPFAUpdate(int start);
+void oneInBridgesTopo();
+#endif
 void getShortestPathBruteForce(int start);
 void output_result();
 void SPToDest();
@@ -83,7 +95,7 @@ void search_route(char *topo[5000], int edge_num, char *demand)
     path.push_back(0);  //distance
     path.push_back(src);  //source
 
-    if (bCnt <= 5 && N <= 13) {
+    if (bCnt <= 5 && N <= 11) {
         getShortestPathBruteForce(src);
         output_result();
         return ;
@@ -93,7 +105,16 @@ void search_route(char *topo[5000], int edge_num, char *demand)
     if (jstatus == 0) {
         memset(distancesToDest, 0, sizeof(distancesToDest));
         SPToDest();
-        getShortestPathSPFA(src);
+#if MIDDLE_SPLIT_ON
+        if (oneInNum <= 3) {
+#endif
+            getShortestPathSPFA(src);
+#if MIDDLE_SPLIT_ON
+        } else {
+            oneInBridgesTopo();
+            getShortestPathSPFAUpdate(src);
+        }
+#endif
     } else if (jstatus == -1) {
         memset(visitedB, 0, sizeof(visitedB));
         visitedBCnt = 0;
@@ -102,8 +123,18 @@ void search_route(char *topo[5000], int edge_num, char *demand)
         path.clear();
         path.push_back(0);  //distance
         path.push_back(src);  //source
-        getShortestPathSPFA(src);
+#if MIDDLE_SPLIT_ON
+        if (oneInNum <= 3) {
+#endif
+            getShortestPathSPFA(src);
+#if MIDDLE_SPLIT_ON
+        } else {
+            visitedOneInBridgesCnt = 0;
+            getShortestPathSPFAUpdate(src);
+        }
+#endif
     }
+
     if (pathLen == 0) {
         memset(visitedB, 0, sizeof(visitedB));
         visitedBCnt = 0;
@@ -114,17 +145,17 @@ void search_route(char *topo[5000], int edge_num, char *demand)
         path.push_back(src);  //source
         getShortestPathBruteForce(src);
     }
+
     output_result();
 }
 
 void output_result() {
-//    cout << minDistance << endl;
+#if OUTPUT_ON
+    cout << minDistance << endl;
+#endif
 #if REVERSE_ON
-    for (int i = pathLen - 1; i >= 1 ; i--) {
- //       cout << shortestPath[i] << " ";
+    for (int i = pathLen - 1; i >= 1 ; i--)
         record_result(labels[shortestPath[i]][shortestPath[i - 1]]);
-    }
-  //  cout << endl;
 #else
     for (int i = 0; i < pathLen - 1; i++)
         record_result(labels[shortestPath[i]][shortestPath[i + 1]]);
@@ -187,6 +218,11 @@ void read_demand(char *demand)
     swap(src, dest);
 #endif
 
+#if MIDDLE_SPLIT_ON
+    memset(isOneIndgreeBridges, 0, sizeof(isOneIndgreeBridges));
+    oneInNum = 0;
+#endif
+
     i++;
     while(demand[i] != '\n' && demand[i] != '\0') {
         int tmp = 0;
@@ -197,6 +233,13 @@ void read_demand(char *demand)
         }
         bridges[bCnt++] = tmp;
         isBridges[tmp] = true;
+#if MIDDLE_SPLIT_ON
+        //add all bridges whose indgree is one
+        if (edgesRCnt[tmp] == 1) {
+			isOneIndgreeBridges[tmp] = true;
+			oneInNum++;
+		}
+#endif
         i++;
     }
 /*
@@ -231,6 +274,29 @@ void SPToDest() {
 		}
 	}
 }
+
+#if MIDDLE_SPLIT_ON
+void oneInBridgesTopo() {
+	memset(color, 0, sizeof(color));
+	que.push(src);
+	color[src] = true;
+
+	while (!que.empty() && oneInBridgesCnt != oneInNum) {
+		int u = que.front();
+		que.pop();
+		for (int c = 0; c < edgesCnt[u]; ++c) {
+			int v = edges[u][c][1];
+			if (color[v] == false) {
+				que.push(v);
+				color[v] = true;
+				if (isOneIndgreeBridges[v])
+					oneInBridgesSeq[oneInBridgesCnt++] = v;
+			}
+		}
+	}
+	while(!que.empty()) que.pop();
+}
+#endif
 
 bool cmp_dis_to_dest(int u, int v) {
     if (distancesToDest[u] < distancesToDest[v]) return true;
@@ -290,7 +356,7 @@ void getShortestPathSPFA(int start) {
         if (!visitedB[b] && distances[b] == 0) return;
     }
     if (distances[dest] == 0) return;
-    if (distances[dest] + path[0] >= minDistance) return;
+    if (distances[dest] + path[0] >= 1.2 * minDistance) return;
 
     //we can be sure that distances[dest] + path.get(0) < minDistance
     //and we update the minDistance and shortestPath
@@ -374,6 +440,168 @@ void getShortestPathSPFA(int start) {
     delete[] parents;
     delete[] distances;
 }
+
+#if MIDDLE_SPLIT_ON
+void getShortestPathSPFAUpdate(int start) {
+    clock_t cur_time = clock();
+    if (first_try && (cur_time - start_time) * 1.0 / CLOCKS_PER_SEC * 1000 > 3000) {
+        first_try = false;
+        longjmp(jmpManiBuf, -1);
+    } else if (second_try && (cur_time - start_time) * 1.0 / CLOCKS_PER_SEC * 1000 > 6000) {
+        second_try = false;
+        longjmp(jmpManiBuf, -1);
+    } else if ((cur_time - start_time) * 1.0 / CLOCKS_PER_SEC * 1000 > 9900) {
+        longjmp(jmpManiBuf, -2);
+    }
+    //distances[i] == 0 means: 1. start vertex, 2. unreabable
+    int *distances = new int[N];
+    int *parents = new int[N];
+    memset(color, 0, sizeof(color));
+    for (int i = 0; i < N; i++) {
+        distances[i] = 0;
+        parents[i] = 0;
+    }
+/*
+    if (!que.empty()) {
+        cout << "error que" << endl;
+        abort();
+    }
+    */
+    que.push(start);
+    color[start] = true;
+    parents[start] = start;
+
+    //here, there may be a path like: start --> b1 --> b2
+    while (!que.empty()) {
+        int u = que.front();
+        que.pop();
+        color[u] = false;
+        for (int c = 0; c < edgesCnt[u]; ++c) {
+            int w = edges[u][c][0];
+            int v = edges[u][c][1];
+            if (excluded[v]) continue;
+            if (distances[v] == 0 || distances[v] > distances[u] + w) {
+                distances[v] = distances[u] + w;
+                parents[v] = u;
+                if (color[v] == false) {
+                    que.push(v);
+                    color[v] = true;
+                }
+            }
+        }
+    }
+    for (int i = 0; i < bCnt; i++) {
+        int b = bridges[i];
+        if (!visitedB[b] && distances[b] == 0) return;
+    }
+    if (distances[dest] == 0) return;
+    if (distances[dest] + path[0] >= minDistance) return;
+
+    //we can be sure that distances[dest] + path.get(0) < minDistance
+    //and we update the minDistance and shortestPath
+    if (bCnt == visitedBCnt) {
+        vector<int> res;
+        int p = dest;
+        while (parents[p] != p) {
+            res.push_back(p);
+            p = parents[p];
+        }
+        minDistance = path[0] + distances[dest];
+        pathLen = path.size() + res.size() - 1;
+        for (vector<int>::size_type i = 1; i < path.size(); ++i)
+            shortestPath[i - 1] = path[i];
+        for (vector<int>::size_type i = 0; i < res.size(); ++i)
+            shortestPath[i + path.size() - 1] = res[res.size() - i - 1];
+        return;
+    }
+
+    int nearestOneInB = -1;
+	int nearestOneInBDis = INT_MAX;
+	if (visitedOneInBridgesCnt != oneInBridgesCnt) {
+		nearestOneInB = oneInBridgesSeq[visitedOneInBridgesCnt];
+		nearestOneInBDis = distances[nearestOneInB];
+	}
+
+    //here, we can use randomness
+    int *tmpBridges = new int[bCnt - visitedBCnt];
+    int tmpBCnt = 0;
+
+    for (int i = 0; i < bCnt; i++) {
+        int b = bridges[i];
+        if (visitedB[b] || distancesToDest[b] == 0 ||
+                (path[0] + distances[b] + distancesToDest[b] >= minDistance) ||
+                distances[b] >= nearestOneInBDis || isOneIndgreeBridges[b])
+            continue;
+        tmpBridges[tmpBCnt++] = b;
+    }
+
+    if (nearestOneInB != -1) {
+		if (!(visitedB[nearestOneInB] || distancesToDest[nearestOneInB] == 0 ||
+				(path[0] + distances[nearestOneInB] + distancesToDest[nearestOneInB] >= minDistance)))
+				tmpBridges[tmpBCnt++] = nearestOneInB;
+	}
+
+#if RANDOM_ON
+    for (int i = 0; i < tmpBCnt; ++i) {
+        int j = rand() % tmpBCnt;
+        swap(tmpBridges[i], tmpBridges[j]);
+    }
+#else
+    sort(tmpBridges, tmpBridges + tmpBCnt, cmp_dis_to_dest);
+#endif
+    vector<int> res;
+    for (int bi = 0; bi < tmpBCnt; ++bi) {
+        int b = tmpBridges[bi];
+//#if RANDOM_ON
+        if (4 < visitedBCnt && visitedBCnt + 5 < bCnt) {
+            int p = rand() % visitedBCnt;
+            if (p < visitedBCnt - 3)
+                continue;
+        }
+//#endif
+        res.clear();
+        int p = b;
+        bool containsB = false;
+        while (parents[p] != p) {
+            if (p != b && isBridges[p]) {
+                containsB = true;
+                break;
+            }
+            res.push_back(p);
+            p = parents[p];
+        }
+        //we use greedy tragedy. if start --> b1 --> b2, we won't select b2 (just b1)
+        if (containsB) continue;
+        //res does not contain start & path has already contained it
+        path[0] += distances[b];
+        for (int i = res.size() - 1; i >= 0; --i) {
+            path.push_back(res[i]);
+            excluded[res[i]] = true;
+        }
+        visitedB[b] = true;
+        visitedBCnt++;
+
+        if (isOneIndgreeBridges[b])
+			visitedOneInBridgesCnt++;
+
+        getShortestPathSPFAUpdate(b);
+
+        if (isOneIndgreeBridges[b])
+			visitedOneInBridgesCnt--;
+
+        visitedB[b] = false;
+        visitedBCnt--;
+        for (int i = res.size() - 1; i >= 0; --i) {
+            path.pop_back();
+            excluded[res[i]] = false;
+        }
+        path[0] -= distances[b];
+    }
+    delete[] tmpBridges;
+    delete[] parents;
+    delete[] distances;
+}
+#endif
 
 
 void getAllPaths(int start, int end, vector<int> &path, vector<vector<int> > &allPaths) {
