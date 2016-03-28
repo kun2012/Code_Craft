@@ -18,6 +18,7 @@ using std::swap;
 using std::sort;
 
 #define RANDOM_ON 1
+#define REVERSE_ON 1
 
 const int MAXN = 610;
 
@@ -82,7 +83,7 @@ void search_route(char *topo[5000], int edge_num, char *demand)
     path.push_back(0);  //distance
     path.push_back(src);  //source
 
-    if (bCnt <= 5 && N <= 10) {
+    if (bCnt <= 5 && N <= 13) {
         getShortestPathBruteForce(src);
         output_result();
         return ;
@@ -118,8 +119,16 @@ void search_route(char *topo[5000], int edge_num, char *demand)
 
 void output_result() {
 //    cout << minDistance << endl;
+#if REVERSE_ON
+    for (int i = pathLen - 1; i >= 1 ; i--) {
+ //       cout << shortestPath[i] << " ";
+        record_result(labels[shortestPath[i]][shortestPath[i - 1]]);
+    }
+  //  cout << endl;
+#else
     for (int i = 0; i < pathLen - 1; i++)
         record_result(labels[shortestPath[i]][shortestPath[i + 1]]);
+#endif
 }
 
 void read_graph(char *topo[5000], int edge_num)
@@ -139,6 +148,15 @@ void read_graph(char *topo[5000], int edge_num)
     for (int i = 0; i < N; ++i)
         for (int j = 0; j < N; ++j)
             if (tmpEdges[i][j] != 0) {
+#if REVERSE_ON
+                edgesR[i][edgesRCnt[i]][0] = tmpEdges[i][j];
+                edgesR[i][edgesRCnt[i]][1] = j;
+                edgesRCnt[i]++;
+
+                edges[j][edgesCnt[j]][0] = tmpEdges[i][j];
+				edges[j][edgesCnt[j]][1] = i;
+				edgesCnt[j]++;
+#else
                 edges[i][edgesCnt[i]][0] = tmpEdges[i][j];
                 edges[i][edgesCnt[i]][1] = j;
                 edgesCnt[i]++;
@@ -146,6 +164,7 @@ void read_graph(char *topo[5000], int edge_num)
                 edgesR[j][edgesRCnt[j]][0] = tmpEdges[i][j];
 				edgesR[j][edgesRCnt[j]][1] = i;
 				edgesRCnt[j]++;
+#endif
             }
 }
 
@@ -163,6 +182,11 @@ void read_demand(char *demand)
         dest = dest * 10 + demand[i] - '0';
         i++;
     }
+
+#if REVERSE_ON
+    swap(src, dest);
+#endif
+
     i++;
     while(demand[i] != '\n' && demand[i] != '\0') {
         int tmp = 0;
@@ -309,13 +333,13 @@ void getShortestPathSPFA(int start) {
     vector<int> res;
     for (int bi = 0; bi < tmpBCnt; ++bi) {
         int b = tmpBridges[bi];
-#if RANDOM_ON
+//#if RANDOM_ON
         if (4 < visitedBCnt && visitedBCnt + 5 < bCnt) {
             int p = rand() % visitedBCnt;
             if (p < visitedBCnt - 3)
                 continue;
         }
-#endif
+//#endif
         res.clear();
         int p = b;
         bool containsB = false;
