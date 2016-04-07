@@ -88,12 +88,14 @@ void search_route(char *topo[5000], int edge_num, char *demand)
 
     int jstatus = setjmp(jmpManiBuf);
     if (jstatus == 0) {
-        if (N <= 100) {
+        memset(distancesToDest, 0, sizeof(distancesToDest));
+        SPToDest();
+        if (N <= 120) {
             getShortestPathBruteForce(src);
         } else {
-            memset(distancesToDest, 0, sizeof(distancesToDest));
-            SPToDest();
-            getBridgesEstimate();
+            //memset(distancesToDest, 0, sizeof(distancesToDest));
+            //SPToDest();
+            //getBridgesEstimate();
             getShortestPathSPFA(src);
         }
     } else if (jstatus == -1) {
@@ -592,28 +594,31 @@ void getShortestPathBFS(int start) {
     delete[] distances;
 }
 
-void getAllPaths(int start, int end, vector<int> &path, vector<vector<int> > &allPaths) {
+void getAllPaths(int start, int end, vector<int> &curPath, vector<vector<int> > &allPaths) {
 
     clock_t cur_time = clock();
-        if ((cur_time - start_time) * 1.0 / CLOCKS_PER_SEC * 1000 > 9910) {
+        if ((cur_time - start_time) * 1.0 / CLOCKS_PER_SEC * 1000 > 8910) {
         longjmp(jmpManiBuf, -2);
     }
+
+    if (path[0] + curPath[0] + distancesToDest[start] >= minDistance)
+        return;
 
     for (int c = 0; c < edgesCnt[start]; ++c) {
         int w = edges[start][c][0];
         int v = edges[start][c][1];
         if (v == end) {
-            vector<int> r(path);
+            vector<int> r(curPath);
             r[0] += w;
             r.push_back(v);
             allPaths.push_back(r);
         } else if (!excluded[v] && !isBridges[v]) {
             excluded[v] = true;
-            path.push_back(v);
-            path[0] += w;
-            getAllPaths(v, end, path, allPaths);
-            path[0] -= w;
-            path.pop_back();
+            curPath.push_back(v);
+            curPath[0] += w;
+            getAllPaths(v, end, curPath, allPaths);
+            curPath[0] -= w;
+            curPath.pop_back();
             excluded[v] = false;
         }
     }
@@ -653,7 +658,7 @@ bool cmp_path_dis(const vector<int> &a, const vector<int> &b) {
 void getShortestPathBruteForce(int start) {
 
     clock_t cur_time = clock();
-        if ((cur_time - start_time) * 1.0 / CLOCKS_PER_SEC * 1000 > 9910) {
+        if ((cur_time - start_time) * 1.0 / CLOCKS_PER_SEC * 1000 > 8910) {
         longjmp(jmpManiBuf, -2);
     }
 
@@ -698,11 +703,10 @@ void getShortestPathBruteForce(int start) {
         vector<int> curPath;
         curPath.push_back(0);
         curPath.push_back(start);
-
         getAllPaths(start, b, curPath, allPaths);
+    }
 
-   //     cout << "b = " << b << ": " << allPaths.size() << endl;
-        if (allPaths.size() == 0) return;
+    {
         sort(allPaths.begin(), allPaths.end(), cmp_path_dis);
         for (size_t j = 0; j < allPaths.size(); j++) {
             for (size_t i = 1; i < allPaths[j].size(); ++i) {
@@ -710,8 +714,9 @@ void getShortestPathBruteForce(int start) {
                 if (i >= 2)
                     path.push_back(allPaths[j][i]);
             }
+            int b = path[path.size() - 1];
+
             path[0] += allPaths[j][0];
-   //         cout << "path[0] = " << path[0] << endl;
             visitedB[b] = true;
             visitedBCnt++;
 
