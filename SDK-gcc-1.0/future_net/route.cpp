@@ -16,6 +16,9 @@ using namespace std;
 #define REVERSE_ON 0
 #define OUTPUT_ON 0
 
+const int bruteforce_time = 7000;
+const int dijk_time = 9920;
+
 const int MAXN = 610;
 
 jmp_buf jmpManiBuf;
@@ -90,7 +93,7 @@ void search_route(char *topo[5000], int edge_num, char *demand)
     if (jstatus == 0) {
         memset(distancesToDest, 0, sizeof(distancesToDest));
         SPToDest();
-        if (N <= 120) {
+        if (N <= 100) {
             getShortestPathBruteForce(src);
         } else {
             //memset(distancesToDest, 0, sizeof(distancesToDest));
@@ -280,7 +283,7 @@ void getShortestPathSPFA(int start) {
 //        second_try = false;
 //        longjmp(jmpManiBuf, -1);
 //    } else
-        if ((cur_time - start_time) * 1.0 / CLOCKS_PER_SEC * 1000 > 9910) {
+        if ((cur_time - start_time) * 1.0 / CLOCKS_PER_SEC * 1000 > dijk_time) {
         longjmp(jmpManiBuf, -2);
     }
 
@@ -597,7 +600,7 @@ void getShortestPathBFS(int start) {
 void getAllPaths(int start, int end, vector<int> &curPath, vector<vector<int> > &allPaths) {
 
     clock_t cur_time = clock();
-        if ((cur_time - start_time) * 1.0 / CLOCKS_PER_SEC * 1000 > 8910) {
+        if ((cur_time - start_time) * 1.0 / CLOCKS_PER_SEC * 1000 > bruteforce_time) {
         longjmp(jmpManiBuf, -2);
     }
 
@@ -655,10 +658,12 @@ bool cmp_path_dis(const vector<int> &a, const vector<int> &b) {
     return a[0] < b[0];
 }
 
+
+
 void getShortestPathBruteForce(int start) {
 
     clock_t cur_time = clock();
-        if ((cur_time - start_time) * 1.0 / CLOCKS_PER_SEC * 1000 > 8910) {
+        if ((cur_time - start_time) * 1.0 / CLOCKS_PER_SEC * 1000 > bruteforce_time) {
         longjmp(jmpManiBuf, -2);
     }
 
@@ -709,13 +714,12 @@ void getShortestPathBruteForce(int start) {
     {
         sort(allPaths.begin(), allPaths.end(), cmp_path_dis);
         for (size_t j = 0; j < allPaths.size(); j++) {
+            int b = allPaths[j].back();
             for (size_t i = 1; i < allPaths[j].size(); ++i) {
                 excluded[allPaths[j][i]] = true;
                 if (i >= 2)
                     path.push_back(allPaths[j][i]);
             }
-            int b = path[path.size() - 1];
-
             path[0] += allPaths[j][0];
             visitedB[b] = true;
             visitedBCnt++;
